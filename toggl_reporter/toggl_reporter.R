@@ -1,5 +1,5 @@
 
-INPUT_FILE <- "/home/pal/dev/r/Toggl_time_entries_2019-09-01_to_2019-09-30.csv"
+INPUT_FILE <- "Toggl_time_entries_2019-09-01_to_2019-09-30.csv"
 
 library(tibble)
 library(dplyr)
@@ -30,6 +30,13 @@ Time <- function(time_str) {
 
 as.Time <- function(time_str) {
     return (Time(time_str))
+}
+
+as.character.Time <- function(time) {
+    if (class(time) != "Time") {
+        return(NA)
+    }
+    return (paste(time$hours, time$minutes, sep=":"))
 }
 
 time_to_seconds <- function(time) {
@@ -89,17 +96,16 @@ read_file <- function(filename) {
 }
 
 time_sum <- function(time_strs) {
-    times <- c()
+    times <- list()
     for (time_str in time_strs) {
         time <- as.Time(time_str)
-        times <- c(times, time)
+        times <- c(times, list(time))
     }
     total_time <- Time("0:00:00")
     for (time in times) {
         total_time <- total_time + time
     }
-    cat("Total time: ", total_time, "\n")
-    return (as.character(total_time))
+    return (time_to_seconds(total_time))
 }
 
 group_by_days <- function(data_frame) {
@@ -108,15 +114,20 @@ group_by_days <- function(data_frame) {
         group_by(Start.date) %>%
         summarise(day_duration = time_sum(Duration))
     
-    return (day_duration_table)
-}
+    # Convert seconds to time in second column
+    duration_times_str <- c()
+    for (duration_seconds in day_duration_table$day_duration) {
+        time <- seconds_to_time(duration_seconds)
+        duration_times_str <- c(duration_times_str, as.character(time))
+    }
+    day_duration_table <- add_column(day_duration_table, duration_times = duration_times_str)
 
-test_operator <- function() {
-    time1 <- Time("0:30:12")
-    time2 <- Time("0:10:05")
-    res_time <- time1 + time2
+    # Remove day_duration column
+    day_duration_table$day_duration <- NULL
+    return (day_duration_table)
 }
 
 
 df <- read_file(INPUT_FILE)
-#group_by_days(df)
+df_new <- group_by_days(df)
+print(df_new)
