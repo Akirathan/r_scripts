@@ -1,7 +1,7 @@
 # TODO: 
 # - Locales: print dates in czech format.
-# - Dat Total sloupec pred Comment sloupec.
 # - Print intermediate dates?
+# - Co kdyz bude vic entries se stejnym datem?
 # - Sort dates.
 
 
@@ -9,6 +9,7 @@ INPUT_FILE <- "./data.csv"
 DATE_FORMATS <- c("%d.%m.%Y", "%d.%m", "%d.%m.")
 
 library("tibble")
+library("purrr")
 
 
 assert_correct_file_format <- function(data_frame) {
@@ -32,14 +33,81 @@ add_total_column <- function(data_frame) {
 add_day_column <- function(data_frame) {
 }
 
+parse_date <- function(date_str) {
+    as.Date(date_str, tryFormats=DATE_FORMATS, origin=Sys.Date())
+}
+
+is_date_in_correct_format <- function(date_str) {
+    out <- tryCatch({
+        as.Date(date_str)
+    }, error = function(cond) {
+        return(NA)
+    })
+    return (!is.na(out))
+}
+
 print_data_frame <- function(data_frame) {
     stopifnot(!is.null(data_frame$Total))
 }
 
+add_interval_entries <- function(data_frame) {
+    is_interval <- function(date_str) {
+        length(grep("-", date_str, fixed=TRUE)) > 0
+    }
+
+    parse_interval <- function(date_str) {
+        items <- strsplit(date_str, "-")[[1]]
+        stopifnot( length(items) == 2)
+        start_date <- parse_date(items[1])
+        end_date <- parse_date(items[2])
+        duration <- end_date - start_date
+        interval <- list(
+            start_date = start_date,
+            end_date = end_date,
+            duration = duration
+        )
+        return (interval)
+    }
+
+    intervals <- list()
+    intervals_idxs <- c()
+    for (i in seq(nrow(data_frame))) {
+        row <- data_frame[i,]
+        if (is_interval(row$Date)) {
+            intervals_idxs <- c(intervals_idxs, i)
+            interval <- parse_interval(row$Date)
+            interval$step <- row$Amount / as.integer(interval$duration)
+            interval$comment <- row$Comment
+            intervals <- c(intervals, list(interval))
+        }
+    }
+    # Remove interval entry from data frame.
+    for (interval_idx in intervals_idxs) {
+        data_frame <- data_frame[-c(interval_idx),]
+    }
+
+    # Add entries to data_frame
+    for (interval in intervals) {
+        for (i in seq(interval$duration)) {
+            actual_date <- interval$start_date + i
+            data_frame <- rbind(data_frame, list(
+                    Date=as.character(actual_date),
+                    Amount=interval$step,
+                    Comment=interval$comment))
+        }
+    }
+    return (data_frame)
+}
+
 normalize_all_dates <- function(data_frame) {
-    date_col <- data_frame[,1]
-    date_col <- lapply(date_col, function(date) {
-        as.Date(date, tryFormats=DATE_FORMATS, origin=Sys.Date())
+    date_col <- as.data.frame(data_frame)[,1]
+    date_col <- lapply(date_col, function(date_str) {
+        if (!is_date_in_correct_format(date_str)) {
+            return (parse_date(date_str))
+        }
+        else {
+            return (date_str)
+        }
     })
 
     for (i in seq(nrow(data_frame))) {
@@ -48,22 +116,26 @@ normalize_all_dates <- function(data_frame) {
     return (data_frame)
 }
 
+preprocess_data_frame <- function(data_frame) {
+    data_frame <- add_interval_entries(data_frame)
+    data_frame <- normalize_all_dates(data_frame)
+    cat("After preprocessing:\n")
+    print(data_frame)
+}
+
 read_file <- function(filename) {
-    df <- read.csv(filename, header=TRUE,
+    df <- as_tibble(read.csv(filename, header=TRUE,
         stringsAsFactors=FALSE,
-        colClasses=c("character", "numeric", "character"))
+        colClasses=c("character", "numeric", "character")))
 
     assert_correct_file_format(df)
-    df <- normalize_all_dates(df)
+    df <- preprocess_data_frame(df)
 }
 
 df <- read_file(INPUT_FILE)
-df <- as_tibble(df)
-cat("Dataframe before processing:\n")
-print(df)
 
 df <- add_total_column(df)
 cat("\n")
 cat("Dataframe after processing:\n")
-print(df)
+print(df, n=40)
 
