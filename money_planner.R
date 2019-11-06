@@ -10,6 +10,7 @@ DATE_FORMATS <- c("%d.%m.%Y", "%d.%m", "%d.%m.")
 
 library("tibble")
 library("purrr")
+library("dplyr")
 
 
 assert_correct_file_format <- function(data_frame) {
@@ -116,11 +117,36 @@ normalize_all_dates <- function(data_frame) {
     return (data_frame)
 }
 
+group_amount_by_days <- function(data_frame) {
+    paste_comments <- function(comments) {
+        res <- c()
+        for (comment in comments) {
+            res <- paste(res, comment, sep=",")
+        }
+        stopifnot(length(res) == 1)
+        return (res)
+    }
+
+    summarised_df <- data_frame %>%
+        group_by(Date) %>%
+        summarise(Amount = sum(Amount), Comment = paste_comments(Comment))
+    return (summarised_df)
+}
+
 preprocess_data_frame <- function(data_frame) {
     data_frame <- add_interval_entries(data_frame)
     data_frame <- normalize_all_dates(data_frame)
+    data_frame <- group_amount_by_days(data_frame)
     cat("After preprocessing:\n")
-    print(data_frame)
+    print(data_frame, n=nrow(data_frame))
+}
+
+process_data_frame <- function(data_frame) {
+    data_frame <- add_total_column(data_frame)
+    cat("\n")
+    cat("After processing:\n")
+    print(data_frame, n=nrow(data_frame))
+    return (data_frame)
 }
 
 read_file <- function(filename) {
@@ -129,13 +155,10 @@ read_file <- function(filename) {
         colClasses=c("character", "numeric", "character")))
 
     assert_correct_file_format(df)
-    df <- preprocess_data_frame(df)
+    return (df)
 }
 
 df <- read_file(INPUT_FILE)
-
-df <- add_total_column(df)
-cat("\n")
-cat("Dataframe after processing:\n")
-print(df, n=40)
+df <- preprocess_data_frame(df)
+df <- process_data_frame(df)
 
