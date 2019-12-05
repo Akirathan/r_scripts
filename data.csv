@@ -1,9 +1,10 @@
 Date,Amount,Comment
-4.11,4000,"Zacatek"
-7.11,8000,"Kapesne hana tata"
-10.11,10000,"Kapesne Pavel mama"
-12.11,-7200,"Ubytovani"
-17.11,18600,"Oracle vyplata"
-15.11-18.11,-7000,"Janky dovolena"
-
-5.11-30.11,-10000,"Jidlo"
+5.12,4235,"Zacatek"
+5.12-30.12,-10000,"Jidlo"
+12.12,-7000,"Kolej"
+16.12,18000,"Oracle"
+10.12,10000,"Pavel - mama"
+8.12,8000,"Hana - tata"
+10.12,2000,"CPPT"
+10.12,3000,"Stipendia"
+18.12,-1000,"Jurnicek"
